@@ -146,6 +146,8 @@
                                             <exclude>META-INF/*.SF</exclude>
                                             <exclude>META-INF/*.DSA</exclude>
                                             <exclude>META-INF/*.RSA</exclude>
+                                            <exclude>META-INF/services/io.grpc.*</exclude>
+                                            <exclude>META-INF/services/com.alibaba.nacos.shaded.io.grpc.*</exclude>
                                             <exclude>**/module-info.class</exclude>
                                         </excludes>
                                     </filter>
@@ -154,6 +156,12 @@
                                         <excludes>
                                             <exclude>
                                                 META-INF/native/*.*
+                                            </exclude>
+                                            <exclude>
+                                                META-INF/services/io.grpc.*
+                                            </exclude>
+                                            <exclude>
+                                                META-INF/services/com.alibaba.nacos.shaded.io.grpc.*
                                             </exclude>
                                         </excludes>
                                     </filter>

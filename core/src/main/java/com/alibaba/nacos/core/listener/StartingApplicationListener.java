@@ -24,6 +24,7 @@ import com.alibaba.nacos.common.executor.NameThreadFactory;
 import com.alibaba.nacos.common.executor.ThreadPoolManager;
 import com.alibaba.nacos.common.notify.NotifyCenter;
 import com.alibaba.nacos.common.utils.StringUtils;
+import com.alibaba.nacos.sys.env.DecryptingPropertySourceWrapper;
 import com.alibaba.nacos.sys.env.EnvUtil;
 import com.alibaba.nacos.sys.file.FileChangeEvent;
 import com.alibaba.nacos.sys.file.FileWatcher;
@@ -36,10 +37,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.env.OriginTrackedMapPropertySource;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertySource;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -105,6 +109,8 @@ public class StartingApplicationListener implements NacosApplicationListener {
         injectEnvironment(environment);
         
         loadPreProperties(environment);
+
+        initEncryptedPropertySource(environment);
         
         initSystemProperty();
     }
@@ -162,6 +168,50 @@ public class StartingApplicationListener implements NacosApplicationListener {
             registerWatcher();
         } catch (Exception e) {
             throw new NacosRuntimeException(NacosException.SERVER_ERROR, e);
+        }
+    }
+
+    private void initEncryptedPropertySource(ConfigurableEnvironment environment) {
+        // 解密密钥：优先使用 jasypt 参数，其次用 nacos 自定义参数
+        String password = environment.getProperty("jasypt.encryptor.password");
+        if (StringUtils.isBlank(password)) {
+            password = EnvUtil.getSystemEnv("JASYPT_ENCRYPTOR_PASSWORD");
+        }
+        if (StringUtils.isBlank(password)) {
+            password = environment.getProperty("nacos.encryptor.password");
+        }
+        wrapPropertySources(environment, password);
+    }
+
+    private void wrapPropertySources(ConfigurableEnvironment environment, String password) {
+        if (StringUtils.isBlank(password)) {
+            return;
+        }
+        MutablePropertySources sources = environment.getPropertySources();
+        String algorithm = environment.getProperty(DecryptingPropertySourceWrapper.JASYPT_ENCRYPTOR_ALGORITHM_KEY);
+        String stringOutputType = environment.getProperty(
+                DecryptingPropertySourceWrapper.JASYPT_ENCRYPTOR_STRING_OUTPUT_TYPE_KEY);
+
+        List<PropertySource<?>> snapshot = new ArrayList<>();
+        for (PropertySource<?> ps : sources) {
+            snapshot.add(ps);
+        }
+
+        for (PropertySource<?> ps : snapshot) {
+            if (ps == null) {
+                continue;
+            }
+            if (DecryptingPropertySourceWrapper.isWrapped(ps)) {
+                continue;
+            }
+            if ("configurationProperties".equals(ps.getName())) {
+                continue;
+            }
+            String psClassName = ps.getClass().getName();
+            if (psClassName.contains("ConfigurationPropertySources")) {
+                continue;
+            }
+            sources.replace(ps.getName(), new DecryptingPropertySourceWrapper(ps, password, algorithm, stringOutputType));
         }
     }
     
