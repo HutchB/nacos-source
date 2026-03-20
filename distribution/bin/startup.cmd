@@ -83,11 +83,12 @@ set "NACOS_OPTS=%NACOS_OPTS% -Dnacos.home=%BASE_DIR%"
 set "NACOS_OPTS=%NACOS_OPTS% -jar %BASE_DIR%\target\%SERVER%.jar"
 
 rem set nacos spring config location
-set "NACOS_CONFIG_OPTS=--spring.config.additional-location=%CUSTOM_SEARCH_LOCATIONS%"
+set "NACOS_CONFIG_OPTS=--spring.config.additional-location=%CUSTOM_SEARCH_LOCATIONS% --server.tomcat.basedir=%BASE_DIR%\\logs"
 
 rem set nacos log4j file location
 set "NACOS_LOG4J_OPTS=--logging.config=%BASE_DIR%/conf/nacos-logback.xml"
 
+if not exist "%BASE_DIR%\\logs" mkdir "%BASE_DIR%\\logs"
 
 set COMMAND="%JAVA%" %NACOS_JVM_OPTS% %NACOS_OPTS% %NACOS_CONFIG_OPTS% %NACOS_LOG4J_OPTS% nacos.nacos %*
 
